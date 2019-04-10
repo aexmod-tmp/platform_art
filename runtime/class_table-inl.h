@@ -23,6 +23,7 @@
 #include "gc_root-inl.h"
 #include "mirror/class.h"
 #include "oat_file.h"
+#include "obj_ptr-inl.h"
 
 namespace art {
 
@@ -89,7 +90,7 @@ bool ClassTable::Visit(const Visitor& visitor) {
 }
 
 template<ReadBarrierOption kReadBarrierOption>
-inline mirror::Class* ClassTable::TableSlot::Read() const {
+inline ObjPtr<mirror::Class> ClassTable::TableSlot::Read() const {
   const uint32_t before = data_.load(std::memory_order_relaxed);
   const ObjPtr<mirror::Class> before_ptr(ExtractPtr(before));
   const ObjPtr<mirror::Class> after_ptr(
@@ -99,7 +100,7 @@ inline mirror::Class* ClassTable::TableSlot::Read() const {
     // one.
     data_.CompareAndSetStrongRelease(before, Encode(after_ptr, MaskHash(before)));
   }
-  return after_ptr.Ptr();
+  return after_ptr;
 }
 
 template<typename Visitor>

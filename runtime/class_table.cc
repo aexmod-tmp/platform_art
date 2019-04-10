@@ -45,7 +45,7 @@ bool ClassTable::Contains(ObjPtr<mirror::Class> klass) {
   return false;
 }
 
-mirror::Class* ClassTable::LookupByDescriptor(ObjPtr<mirror::Class> klass) {
+ObjPtr<mirror::Class> ClassTable::LookupByDescriptor(ObjPtr<mirror::Class> klass) {
   ReaderMutexLock mu(Thread::Current(), lock_);
   TableSlot slot(klass);
   for (ClassSet& class_set : classes_) {
@@ -57,7 +57,9 @@ mirror::Class* ClassTable::LookupByDescriptor(ObjPtr<mirror::Class> klass) {
   return nullptr;
 }
 
-mirror::Class* ClassTable::UpdateClass(const char* descriptor, mirror::Class* klass, size_t hash) {
+ObjPtr<mirror::Class> ClassTable::UpdateClass(const char* descriptor,
+                                              ObjPtr<mirror::Class> klass,
+                                              size_t hash) {
   WriterMutexLock mu(Thread::Current(), lock_);
   // Should only be updating latest table.
   DescriptorHashPair pair(descriptor, hash);
@@ -70,7 +72,7 @@ mirror::Class* ClassTable::UpdateClass(const char* descriptor, mirror::Class* kl
     }
     LOG(FATAL) << "Updating class not found " << descriptor;
   }
-  mirror::Class* const existing = existing_it->Read();
+  const ObjPtr<mirror::Class> existing = existing_it->Read();
   CHECK_NE(existing, klass) << descriptor;
   CHECK(!existing->IsResolved()) << descriptor;
   CHECK_EQ(klass->GetStatus(), ClassStatus::kResolving) << descriptor;
@@ -121,7 +123,7 @@ size_t ClassTable::NumReferencedNonZygoteClasses() const {
   return classes_.back().size();
 }
 
-mirror::Class* ClassTable::Lookup(const char* descriptor, size_t hash) {
+ObjPtr<mirror::Class> ClassTable::Lookup(const char* descriptor, size_t hash) {
   DescriptorHashPair pair(descriptor, hash);
   ReaderMutexLock mu(Thread::Current(), lock_);
   for (ClassSet& class_set : classes_) {
