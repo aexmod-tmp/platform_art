@@ -25,6 +25,7 @@
 #include "base/allocator.h"
 #include "base/atomic.h"
 #include "base/enums.h"
+#include "base/file_utils.h"
 #include "base/logging.h"  // For VLOG.
 #include "base/mutex.h"
 #include "base/safe_map.h"
