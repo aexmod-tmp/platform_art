@@ -377,7 +377,7 @@ void InstrumentationInstallStack(Thread* thread, void* arg)
           UNREACHABLE();
         }
         InstrumentationStackFrame instrumentation_frame(
-            m->IsRuntimeMethod() ? nullptr : GetThisObject(),
+            m->IsRuntimeMethod() ? nullptr : GetThisObject().Ptr(),
             m,
             return_pc,
             GetFrameId(),    // A runtime method still gets a frame id.
