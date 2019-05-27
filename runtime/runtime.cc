@@ -2905,6 +2905,10 @@ bool Runtime::GetStartupCompleted() const {
   return startup_completed_.load(std::memory_order_seq_cst);
 }
 
+void Runtime::SetSignalHookDebuggable(bool value) {
+  SkipAddSignalHandler(value);
+}
+
 void Runtime::SetJniIdType(JniIdType t) {
   CHECK(CanSetJniIdType()) << "Not allowed to change id type!";
   if (t == GetJniIdType()) {
