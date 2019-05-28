@@ -1595,7 +1595,8 @@ bool Redefiner::ClassRedefinition::EnsureClassAllocationsFinished(
     return false;
   }
   // Allocate the classExt
-  art::Handle<art::mirror::ClassExt> ext(hs.NewHandle(klass->EnsureExtDataPresent(driver_->self_)));
+  art::Handle<art::mirror::ClassExt> ext =
+      hs.NewHandle(art::mirror::Class::EnsureExtDataPresent(klass, driver_->self_));
   if (ext == nullptr) {
     // No memory. Clear exception (it's not useful) and return error.
     driver_->self_->AssertPendingOOMException();
@@ -1610,8 +1611,8 @@ bool Redefiner::ClassRedefinition::EnsureClassAllocationsFinished(
   // however, since that can happen at any time.
   cur_data->SetOldObsoleteMethods(ext->GetObsoleteMethods());
   cur_data->SetOldDexCaches(ext->GetObsoleteDexCaches());
-  if (!ext->ExtendObsoleteArrays(
-        driver_->self_, klass->GetDeclaredMethodsSlice(art::kRuntimePointerSize).size())) {
+  if (!art::mirror::ClassExt::ExtendObsoleteArrays(
+          ext, driver_->self_, klass->GetDeclaredMethodsSlice(art::kRuntimePointerSize).size())) {
     // OOM. Clear exception and return error.
     driver_->self_->AssertPendingOOMException();
     driver_->self_->ClearException();
