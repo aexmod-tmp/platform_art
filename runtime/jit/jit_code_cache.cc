@@ -377,7 +377,7 @@ static size_t GetJitCodeAlignment() {
     // Some devices with 32-bit ARM kernels need additional JIT code alignment when using dual
     // view JIT (b/132205399). The alignment returned here coincides with the typical ARM d-cache
     // line (though the value should be probed ideally). Both the method header and code in the
-    // cache are aligned to this size. Anything less than 64-bytes exhibits the problem.
+    // cache are aligned to this size.
     return 64;
   }
   return GetInstructionSetAlignment(kRuntimeISA);
@@ -722,7 +722,7 @@ uint8_t* JitCodeCache::CommitCodeInternal(Thread* self,
 
     // AllocateCode allocates memory in non-executable region for alignment header and code. The
     // header size may include alignment padding.
-    uint8_t* nox_memory = region->AllocateCode(total_size);
+    uint8_t* nox_memory = region->AllocateCode(total_size, alignment);
     if (nox_memory == nullptr) {
       return nullptr;
     }
