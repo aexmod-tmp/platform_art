@@ -1531,6 +1531,7 @@ extern "C" bool ArtPlugin_Initialize() {
   ClassUtil::Register(gEventHandler);
   DumpUtil::Register(gEventHandler);
   MethodUtil::Register(gEventHandler);
+  HeapExtensions::Register(gEventHandler);
   SearchUtil::Register();
   HeapUtil::Register();
   Transformer::Setup();
