@@ -880,9 +880,9 @@ bool Jit::MaybeCompileMethod(Thread* self,
     return false;
   }
   if (UNLIKELY(method->IsPreCompiled()) && !with_backedges /* don't check for OSR */) {
-    const void* entry_point = code_cache_->GetSavedEntryPointOfPreCompiledMethod(method);
-    if (entry_point != nullptr) {
-      Runtime::Current()->GetInstrumentation()->UpdateMethodsCode(method, entry_point);
+    const void* code_ptr = code_cache_->GetZygoteMap()->GetCodeFor(method);
+    if (code_ptr != nullptr) {
+      Runtime::Current()->GetInstrumentation()->UpdateMethodsCode(method, code_ptr);
       return true;
     }
   }
@@ -985,14 +985,6 @@ void Jit::MethodEntered(Thread* thread, ArtMethod* method) {
       compile_task.Run(thread);
     }
     return;
-  }
-
-  if (UNLIKELY(method->IsPreCompiled())) {
-    const void* code_ptr = code_cache_->GetZygoteMap()->GetCodeFor(method);
-    if (code_ptr != nullptr) {
-      Runtime::Current()->GetInstrumentation()->UpdateMethodsCode(method, code_ptr);
-      return;
-    }
   }
 
   ProfilingInfo* profiling_info = method->GetProfilingInfo(kRuntimePointerSize);
