@@ -848,6 +848,13 @@ bool Jit::MaybeCompileMethod(Thread* self,
            Runtime::Current()->IsSafeMode());
     return false;
   }
+  if (UNLIKELY(method->IsPreCompiled()) && !with_backedges /* don't check for OSR */) {
+    const void* code_ptr = code_cache_->GetZygoteMap()->GetCodeFor(method);
+    if (code_ptr != nullptr) {
+      Runtime::Current()->GetInstrumentation()->UpdateMethodsCode(method, code_ptr);
+      return true;
+    }
+  }
   if (IgnoreSamplesForMethod(method)) {
     return false;
   }
