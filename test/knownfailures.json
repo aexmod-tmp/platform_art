@@ -1135,7 +1135,17 @@
                   "1980-obsolete-object-cleared",
                   "1981-structural-redef-private-method-handles",
                   "1982-no-virtuals-structural-redefinition",
-                  "1983-structural-redefinition-failures"
+                  "1983-structural-redefinition-failures",
+                  "1984-structural-redefine-field-trace",
+                  "1985-structural-redefine-stack-scope",
+                  "1986-structural-redefine-multi-thread-stack-scope",
+                  "1987-structural-redefine-recursive-stack-scope",
+                  "1988-multi-structural-redefine",
+                  "1989-transform-bad-monitor",
+                  "1990-structural-bad-verify",
+                  "1991-hello-structural-retransform",
+                  "1992-retransform-no-such-field",
+                  "1993-fallback-non-structural"
                 ],
         "variant": "jvm",
         "description": ["Doesn't run on RI."]
@@ -1228,12 +1238,6 @@
         "tests": ["1339-dead-reference-safe"],
         "variant": "debuggable",
         "description": [ "Fails to eliminate dead reference when debuggable." ]
-    },
-    {
-        "tests": ["708-jit-cache-churn"],
-        "variant": "jit-on-first-use",
-        "bug": "b/120112467",
-        "description": [ "Fails on Android Build hosts with uncaught std::bad_alloc." ]
     },
     {
         "tests": ["719-dm-verify-redefinition"],
