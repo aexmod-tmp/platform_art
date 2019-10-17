@@ -69,6 +69,7 @@ namespace gc {
 class AllocationListener;
 class AllocRecordObjectMap;
 class GcPauseListener;
+class HeapTask;
 class ReferenceProcessor;
 class TaskProcessor;
 class Verification;
@@ -907,6 +908,8 @@ class Heap {
 
   void TraceHeapSize(size_t heap_size);
 
+  bool AddHeapTask(gc::HeapTask* task);
+
  private:
   class ConcurrentGCTask;
   class CollectorTransitionTask;
@@ -1576,6 +1579,7 @@ class Heap {
   friend class GCCriticalSection;
   friend class ReferenceQueue;
   friend class ScopedGCCriticalSection;
+  friend class ScopedInterruptibleGCCriticalSection;
   friend class VerifyReferenceCardVisitor;
   friend class VerifyReferenceVisitor;
   friend class VerifyObjectVisitor;
