@@ -76,6 +76,10 @@ class ArtField final {
     return (GetAccessFlags() & kAccFinal) != 0;
   }
 
+  bool IsPrivate() REQUIRES_SHARED(Locks::mutator_lock_) {
+    return (GetAccessFlags() & kAccPrivate) != 0;
+  }
+
   uint32_t GetDexFieldIndex() {
     return field_dex_idx_;
   }
