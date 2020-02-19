@@ -570,7 +570,6 @@ class DebugTargetChecker:
     self._checker.check_prefer64_library('libmeminfo')
     self._checker.check_prefer64_library('libprocinfo')
 
-
 class NoSuperfluousBinariesChecker:
   def __init__(self, checker):
     self._checker = checker
