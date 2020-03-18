@@ -399,7 +399,7 @@ class OptimizingCompiler final : public Compiler {
                                 const DexCompilationUnit& dex_compilation_unit,
                                 PassObserver* pass_observer) const;
 
-  void GenerateJitDebugInfo(const debug::MethodDebugInfo& method_debug_info);
+  std::vector<uint8_t> GenerateJitDebugInfo(const debug::MethodDebugInfo& method_debug_info);
 
   std::unique_ptr<OptimizingCompilerStats> compilation_stats_;
 
@@ -1257,6 +1257,7 @@ bool OptimizingCompiler::JitCompile(Thread* self,
     const uint8_t* code = reserved_code.data() + OatQuickMethodHeader::InstructionAlignedSize();
 
     // Add debug info after we know the code location but before we update entry-point.
+    std::vector<uint8_t> debug_info;
     if (compiler_options.GenerateAnyDebugInfo()) {
       debug::MethodDebugInfo info = {};
       info.custom_name = "art_jni_trampoline";
@@ -1275,7 +1276,7 @@ bool OptimizingCompiler::JitCompile(Thread* self,
       info.frame_size_in_bytes = jni_compiled_method.GetFrameSize();
       info.code_info = nullptr;
       info.cfi = jni_compiled_method.GetCfi();
-      GenerateJitDebugInfo(info);
+      debug_info = GenerateJitDebugInfo(info);
     }
 
     if (!code_cache->Commit(self,
@@ -1286,6 +1287,8 @@ bool OptimizingCompiler::JitCompile(Thread* self,
                             reserved_data,
                             roots,
                             ArrayRef<const uint8_t>(stack_map),
+                            debug_info,
+                            /* is_full_debug_info= */ compiler_options.GetGenerateDebugInfo(),
                             osr,
                             /* has_should_deoptimize_flag= */ false,
                             cha_single_implementation_list)) {
@@ -1365,6 +1368,7 @@ bool OptimizingCompiler::JitCompile(Thread* self,
 
   // Add debug info after we know the code location but before we update entry-point.
   const CompilerOptions& compiler_options = GetCompilerOptions();
+  std::vector<uint8_t> debug_info;
   if (compiler_options.GenerateAnyDebugInfo()) {
     debug::MethodDebugInfo info = {};
     DCHECK(info.custom_name.empty());
@@ -1383,7 +1387,7 @@ bool OptimizingCompiler::JitCompile(Thread* self,
     info.frame_size_in_bytes = codegen->GetFrameSize();
     info.code_info = stack_map.size() == 0 ? nullptr : stack_map.data();
     info.cfi = ArrayRef<const uint8_t>(*codegen->GetAssembler()->cfi().data());
-    GenerateJitDebugInfo(info);
+    debug_info = GenerateJitDebugInfo(info);
   }
 
   if (!code_cache->Commit(self,
@@ -1394,6 +1398,8 @@ bool OptimizingCompiler::JitCompile(Thread* self,
                           reserved_data,
                           roots,
                           ArrayRef<const uint8_t>(stack_map),
+                          debug_info,
+                          /* is_full_debug_info= */ compiler_options.GetGenerateDebugInfo(),
                           osr,
                           codegen->GetGraph()->HasShouldDeoptimizeFlag(),
                           codegen->GetGraph()->GetCHASingleImplementationList())) {
@@ -1422,7 +1428,7 @@ bool OptimizingCompiler::JitCompile(Thread* self,
   return true;
 }
 
-void OptimizingCompiler::GenerateJitDebugInfo(const debug::MethodDebugInfo& info) {
+std::vector<uint8_t> OptimizingCompiler::GenerateJitDebugInfo(const debug::MethodDebugInfo& info) {
   const CompilerOptions& compiler_options = GetCompilerOptions();
   if (compiler_options.GenerateAnyDebugInfo()) {
     // If both flags are passed, generate full debug info.
@@ -1431,13 +1437,9 @@ void OptimizingCompiler::GenerateJitDebugInfo(const debug::MethodDebugInfo& info
     // Create entry for the single method that we just compiled.
     InstructionSet isa = compiler_options.GetInstructionSet();
     const InstructionSetFeatures* features = compiler_options.GetInstructionSetFeatures();
-    std::vector<uint8_t> elf = debug::MakeElfFileForJIT(isa, features, mini_debug_info, info);
-
-    // NB: Don't allow packing of full info since it would remove non-backtrace data.
-    MutexLock mu(Thread::Current(), *Locks::jit_lock_);
-    const void* code_ptr = reinterpret_cast<const void*>(info.code_address);
-    AddNativeDebugInfoForJit(code_ptr, elf, /*allow_packing=*/ mini_debug_info);
+    return debug::MakeElfFileForJIT(isa, features, mini_debug_info, info);
   }
+  return std::vector<uint8_t>();
 }
 
 }  // namespace art
