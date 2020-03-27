@@ -293,7 +293,7 @@ CompilerDriver::~CompilerDriver() {
                                 type ## _ENTRYPOINT_OFFSET(PointerSize::k32, offset));  \
     }
 
-std::unique_ptr<const std::vector<uint8_t>> CompilerDriver::CreateJniDlsymLookup() const {
+std::unique_ptr<const std::vector<uint8_t>> CompilerDriver::CreateJniDlsymLookupTrampoline() const {
   CREATE_TRAMPOLINE(JNI, kJniAbi, pDlsymLookup)
 }
 
@@ -838,6 +838,15 @@ static void EnsureVerifiedOrVerifyAtRuntime(jobject jclass_loader,
   }
 }
 
+void CompilerDriver::PrepareDexFilesForOatFile(TimingLogger* timings) {
+  compiled_classes_.AddDexFiles(GetCompilerOptions().GetDexFilesForOatFile());
+
+  if (GetCompilerOptions().IsAnyCompilationEnabled()) {
+    TimingLogger::ScopedTiming t2("Dex2Dex SetDexFiles", timings);
+    dex_to_dex_compiler_.SetDexFiles(GetCompilerOptions().GetDexFilesForOatFile());
+  }
+}
+
 void CompilerDriver::PreCompile(jobject class_loader,
                                 const std::vector<const DexFile*>& dex_files,
                                 TimingLogger* timings,
@@ -846,9 +855,6 @@ void CompilerDriver::PreCompile(jobject class_loader,
   CheckThreadPools();
 
   VLOG(compiler) << "Before precompile " << GetMemoryUsageString(false);
-
-  compiled_classes_.AddDexFiles(GetCompilerOptions().GetDexFilesForOatFile());
-  dex_to_dex_compiler_.SetDexFiles(GetCompilerOptions().GetDexFilesForOatFile());
 
   // Precompile:
   // 1) Load image classes.
