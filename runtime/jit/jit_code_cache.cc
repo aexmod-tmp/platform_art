@@ -1279,6 +1279,40 @@ void JitCodeCache::SetGarbageCollectCode(bool value) {
   }
 }
 
+void JitCodeCache::RemoveMethodBeingCompiled(ArtMethod* method, bool osr, bool baseline) {
+  DCHECK(IsMethodBeingCompiled(method, osr, baseline));
+  if (osr) {
+    current_osr_compilations_.erase(method);
+  } else if (baseline) {
+    current_baseline_compilations_.erase(method);
+  } else {
+    current_optimized_compilations_.erase(method);
+  }
+}
+
+void JitCodeCache::AddMethodBeingCompiled(ArtMethod* method, bool osr, bool baseline) {
+  DCHECK(!IsMethodBeingCompiled(method, osr, baseline));
+  if (osr) {
+    current_osr_compilations_.insert(method);
+  } else if (baseline) {
+    current_baseline_compilations_.insert(method);
+  } else {
+    current_optimized_compilations_.insert(method);
+  }
+}
+
+bool JitCodeCache::IsMethodBeingCompiled(ArtMethod* method, bool osr, bool baseline) {
+  return osr ? ContainsElement(current_osr_compilations_, method)
+             : baseline ? ContainsElement(current_baseline_compilations_, method)
+                        : ContainsElement(current_optimized_compilations_, method);
+}
+
+bool JitCodeCache::IsMethodBeingCompiled(ArtMethod* method) {
+  return ContainsElement(current_optimized_compilations_, method) ||
+      ContainsElement(current_osr_compilations_, method) ||
+      ContainsElement(current_baseline_compilations_, method);
+}
+
 void JitCodeCache::DoCollection(Thread* self, bool collect_profiling_info) {
   ScopedTrace trace(__FUNCTION__);
   {
@@ -1309,7 +1343,10 @@ void JitCodeCache::DoCollection(Thread* self, bool collect_profiling_info) {
         // Also remove the saved entry point from the ProfilingInfo objects.
         for (ProfilingInfo* info : profiling_infos_) {
           const void* ptr = info->GetMethod()->GetEntryPointFromQuickCompiledCode();
-          if (!ContainsPc(ptr) && !info->IsInUseByCompiler() && !IsInZygoteDataSpace(info)) {
+          if (!ContainsPc(ptr) &&
+              !IsMethodBeingCompiled(info->GetMethod()) &&
+              !info->IsInUseByCompiler() &&
+              !IsInZygoteDataSpace(info)) {
             info->GetMethod()->SetProfilingInfo(nullptr);
           }
 
@@ -1726,13 +1763,12 @@ bool JitCodeCache::NotifyCompilationOf(ArtMethod* method,
         ClearMethodCounter(method, /*was_warm=*/ false);
         return false;
       }
-    } else {
-      MutexLock mu(self, *Locks::jit_lock_);
-      if (info->IsMethodBeingCompiled(osr)) {
-        return false;
-      }
-      info->SetIsMethodBeingCompiled(true, osr);
     }
+    MutexLock mu(self, *Locks::jit_lock_);
+    if (IsMethodBeingCompiled(method, osr, baseline)) {
+      return false;
+    }
+    AddMethodBeingCompiled(method, osr, baseline);
     return true;
   }
 }
@@ -1756,7 +1792,7 @@ void JitCodeCache::DoneCompilerUse(ArtMethod* method, Thread* self) {
   info->DecrementInlineUse();
 }
 
-void JitCodeCache::DoneCompiling(ArtMethod* method, Thread* self, bool osr) {
+void JitCodeCache::DoneCompiling(ArtMethod* method, Thread* self, bool osr, bool baseline) {
   DCHECK_EQ(Thread::Current(), self);
   MutexLock mu(self, *Locks::jit_lock_);
   if (UNLIKELY(method->IsNative())) {
@@ -1769,11 +1805,7 @@ void JitCodeCache::DoneCompiling(ArtMethod* method, Thread* self, bool osr) {
       jni_stubs_map_.erase(it);  // Remove the entry added in NotifyCompilationOf().
     }  // else Commit() updated entrypoints of all methods in the JniStubData.
   } else {
-    ProfilingInfo* info = method->GetProfilingInfo(kRuntimePointerSize);
-    if (info != nullptr) {
-      DCHECK(info->IsMethodBeingCompiled(osr));
-      info->SetIsMethodBeingCompiled(false, osr);
-    }
+    RemoveMethodBeingCompiled(method, osr, baseline);
   }
 }
 
