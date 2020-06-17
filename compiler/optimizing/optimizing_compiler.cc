@@ -296,8 +296,7 @@ class OptimizingCompiler final : public Compiler {
                   jit::JitCodeCache* code_cache,
                   jit::JitMemoryRegion* region,
                   ArtMethod* method,
-                  bool baseline,
-                  bool osr,
+                  CompilationKind compilation_kind,
                   jit::JitLogger* jit_logger)
       override
       REQUIRES_SHARED(Locks::mutator_lock_);
@@ -377,8 +376,7 @@ class OptimizingCompiler final : public Compiler {
                             CodeVectorAllocator* code_allocator,
                             const DexCompilationUnit& dex_compilation_unit,
                             ArtMethod* method,
-                            bool baseline,
-                            bool osr,
+                            CompilationKind compilation_kind,
                             VariableSizedHandleScope* handles) const;
 
   CodeGenerator* TryCompileIntrinsic(ArenaAllocator* allocator,
@@ -730,8 +728,7 @@ CodeGenerator* OptimizingCompiler::TryCompile(ArenaAllocator* allocator,
                                               CodeVectorAllocator* code_allocator,
                                               const DexCompilationUnit& dex_compilation_unit,
                                               ArtMethod* method,
-                                              bool baseline,
-                                              bool osr,
+                                              CompilationKind compilation_kind,
                                               VariableSizedHandleScope* handles) const {
   MaybeRecordStat(compilation_stats_.get(), MethodCompilationStat::kAttemptBytecodeCompilation);
   const CompilerOptions& compiler_options = GetCompilerOptions();
@@ -800,8 +797,7 @@ CodeGenerator* OptimizingCompiler::TryCompile(ArenaAllocator* allocator,
       kInvalidInvokeType,
       dead_reference_safe,
       compiler_options.GetDebuggable(),
-      /* osr= */ osr,
-      /* baseline= */ baseline);
+      compilation_kind);
 
   if (method != nullptr) {
     graph->SetArtMethod(method);
@@ -874,7 +870,7 @@ CodeGenerator* OptimizingCompiler::TryCompile(ArenaAllocator* allocator,
     }
   }
 
-  if (baseline) {
+  if (compilation_kind == CompilationKind::kBaseline) {
     RunBaselineOptimizations(graph, codegen.get(), dex_compilation_unit, &pass_observer);
   } else {
     RunOptimizations(graph, codegen.get(), dex_compilation_unit, &pass_observer);
@@ -927,7 +923,7 @@ CodeGenerator* OptimizingCompiler::TryCompileIntrinsic(
       kInvalidInvokeType,
       /* dead_reference_safe= */ true,  // Intrinsics don't affect dead reference safety.
       compiler_options.GetDebuggable(),
-      /* osr= */ false);
+      CompilationKind::kOptimized);
 
   DCHECK(Runtime::Current()->IsAotCompiler());
   DCHECK(method != nullptr);
@@ -1060,8 +1056,9 @@ CompiledMethod* OptimizingCompiler::Compile(const dex::CodeItem* code_item,
                        &code_allocator,
                        dex_compilation_unit,
                        method,
-                       compiler_options.IsBaseline(),
-                       /* osr= */ false,
+                       compiler_options.IsBaseline()
+                          ? CompilationKind::kBaseline
+                          : CompilationKind::kOptimized,
                        &handles));
       }
     }
@@ -1207,10 +1204,14 @@ bool OptimizingCompiler::JitCompile(Thread* self,
                                     jit::JitCodeCache* code_cache,
                                     jit::JitMemoryRegion* region,
                                     ArtMethod* method,
-                                    bool baseline,
-                                    bool osr,
+                                    CompilationKind compilation_kind,
                                     jit::JitLogger* jit_logger) {
   const CompilerOptions& compiler_options = GetCompilerOptions();
+  // If the baseline flag was explicitly passed, change the compilation kind
+  // from optimized to baseline.
+  if (compiler_options.IsBaseline() && compilation_kind == CompilationKind::kOptimized) {
+    compilation_kind = CompilationKind::kBaseline;
+  }
   DCHECK(compiler_options.IsJitCompiler());
   DCHECK_EQ(compiler_options.IsJitCompilerForSharedCode(), code_cache->IsSharedRegion(*region));
   StackHandleScope<3> hs(self);
@@ -1288,7 +1289,7 @@ bool OptimizingCompiler::JitCompile(Thread* self,
                             ArrayRef<const uint8_t>(stack_map),
                             debug_info,
                             /* is_full_debug_info= */ compiler_options.GetGenerateDebugInfo(),
-                            osr,
+                            compilation_kind,
                             /* has_should_deoptimize_flag= */ false,
                             cha_single_implementation_list)) {
       code_cache->Free(self, region, reserved_code.data(), reserved_data.data());
@@ -1329,8 +1330,7 @@ bool OptimizingCompiler::JitCompile(Thread* self,
                    &code_allocator,
                    dex_compilation_unit,
                    method,
-                   baseline || compiler_options.IsBaseline(),
-                   osr,
+                   compilation_kind,
                    &handles));
     if (codegen.get() == nullptr) {
       return false;
@@ -1397,7 +1397,7 @@ bool OptimizingCompiler::JitCompile(Thread* self,
                           ArrayRef<const uint8_t>(stack_map),
                           debug_info,
                           /* is_full_debug_info= */ compiler_options.GetGenerateDebugInfo(),
-                          osr,
+                          compilation_kind,
                           codegen->GetGraph()->HasShouldDeoptimizeFlag(),
                           codegen->GetGraph()->GetCHASingleImplementationList())) {
     code_cache->Free(self, region, reserved_code.data(), reserved_data.data());
